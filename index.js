@@ -1,7 +1,17 @@
+const fetch = require('node-fetch');
+const fs = require('fs');
+const { Client, Intents, Collection } =  require("discord.js")
+const { token } = require('./config.json');
 
-const {Client, Intents, Interaction} =  require("discord.js")
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
-const { token } = require('./assets/config.json');
+
+client.commands = new Collection();
+const commandFiles =  fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
+for(const file of commandFiles) {
+  const command =  require(`./commands/${file}`);
+  client.commands.set(command.data.name, command);
+}
 
 client.once('ready', () => {
   console.log('Online!');
@@ -10,15 +20,17 @@ client.once('ready', () => {
 client.on('interactionCreate', async interaction => {
 	if (!interaction.isCommand()) return;
 
-	const { commandName } = interaction;
+	const command = client.commands.get(interaction.commandName);
+  if (!command) {
+    return;
+  }
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    await interaction.reply({ content: 'Ocorreu um erro na execução', ephemeral: true })
+  }
 
-	if (commandName === 'ping') {
-		await interaction.reply('Pong!');
-	} else if (commandName === 'server') {
-		await interaction.reply('Server info.');
-	} else if (commandName === 'user') {
-		await interaction.reply('User info.');
-	}
 });
 
 client.login(token);
